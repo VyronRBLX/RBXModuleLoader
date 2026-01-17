@@ -57,7 +57,7 @@ local function modWarn(msg: string)
 	warn(`{prefix} {msg}`)
 end
 
-local function modError(value: boolean, msg: string)
+local function modAssert(value: any, msg: string)
 	if not value then
 		error(`{prefix} {msg}`)
 	end
@@ -120,7 +120,7 @@ end
 
 -- Loads the given modules
 local function load(modules: { any }, predicate: PredicateFunction?): { [string]: ModScript }
-	assert(modules, "You must pass in a table of modules")
+	modAssert(modules, "You must pass in a table of modules")
 
 	if SETTINGS.DEBUG_MODE then
 		modPrint(`Module Loader started at: {time()}s`)
@@ -136,7 +136,7 @@ local function load(modules: { any }, predicate: PredicateFunction?): { [string]
 	local filteredModules = filterModules(modules, predicate)
 	local totalTime = 0
 
-	assert(#filteredModules >= 1, "No modules to load inside the given table")
+	modAssert(#filteredModules >= 1, "No modules to load inside the given table")
 
 	if SETTINGS.LOADING_PRIORITIES then
 		filteredModules = getSortedModules(filteredModules)
@@ -186,8 +186,8 @@ local function runModules(modules: { [string]: any }, methodName: string)
 	for _, module in modules do
 		local method = module[methodName]
 
-		assert(method, "Method not found or nil")
-		assert(typeof(method) == "function", "Method specified is not a function")
+		modAssert(method, "Method not found or nil")
+		modAssert(typeof(method) == "function", "Method specified is not a function")
 
 		if method and typeof(method) == "function" then
 			task.spawn(module.Init)
@@ -205,12 +205,12 @@ local function getModule(moduleName: string): ModScript
 end
 
 local function isServerLoaded(): boolean
-	modError(runContext == "Server", "Cannot check Server Modules on the Client")
+	modAssert(runContext == "Server", "Cannot check Server Modules on the Client")
 	return serverLoaded
 end
 
 local function isClientLoaded(): boolean
-	modError(runContext == "Client", "Cannot check Client Modules on the Server")
+	modAssert(runContext == "Client", "Cannot check Client Modules on the Server")
 	return clientLoaded
 end
 
