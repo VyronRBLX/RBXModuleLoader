@@ -59,7 +59,7 @@ end
 
 local function modAssert(value: any, msg: string)
 	if not value then
-		error(`{prefix} {msg}`)
+		error(msg)
 	end
 end
 
@@ -75,21 +75,31 @@ local function getSortedModules(modules: { ModuleScript }): { ModuleScript }
 		local bPriority = b:GetAttribute("Priority") or 1
 		return aPriority > bPriority
 	end)
-
+	
 	return sortedModules
 end
 
 local function loadModule(module: ModuleScript, callback: (number) -> ()?)
 	local startTime = os.clock()
+	local finished = false
+	
+	local recordingThread = task.spawn(function()
+		while not finished do
+			if os.clock() - startTime >= 5 then
+				modWarn(`{module.Name} has been loading for: {os.clock() - startTime}s. Consider optimizing it.`)
+				return
+			end
+			task.wait()
+		end
+	end)
+	
 	local success, result: ModScript = pcall(require, module)
-
-	if not success or not result then
-		modWarn(`Module Loader failed loading: {module.Name}`)
-		return
-	end
-
+	finished = true
+	task.cancel(recordingThread)
+	modAssert(success and result, `Module Loader failed loading: {module.Name}`)
+	
 	local timeTaken = os.clock() - startTime
-
+	
 	if SETTINGS.DEBUG_MODE then
 		modPrint(`Loaded: {module.Name} for {timeTaken}s`)
 	end
@@ -97,7 +107,7 @@ local function loadModule(module: ModuleScript, callback: (number) -> ()?)
 	if callback then
 		callback(timeTaken)
 	end
-
+	
 	requiredModules[module.Name] = result
 end
 
@@ -183,19 +193,22 @@ local function loadChildren(parent: Instance, predicate: PredicateFunction?): { 
 end
 
 local function runModules(modules: { [string]: any }, methodName: string)
-	for _, module in modules do
-		local method = module[methodName]
+	for moduleName, module in modules do
+		task.spawn(function()
+			local startTime = os.clock()
+			local method: () -> () = module[methodName]
 
-		modAssert(method, "Method not found or nil")
-		modAssert(typeof(method) == "function", "Method specified is not a function")
+			modAssert(method, "Method not found or nil")
+			modAssert(typeof(method) == "function", "Method found is not a function")
 
-		if method and typeof(method) == "function" then
-			task.spawn(module.Init)
-		end
-
-		if module.Start then
-			task.spawn(module.Start)
-		end
+			if method and typeof(method) == "function" then
+				method()
+			end
+			
+			if SETTINGS.DEBUG_MODE then
+				modPrint(`{moduleName} took {os.clock() - startTime} to run {methodName}`)
+			end
+		end)
 	end
 end
 
