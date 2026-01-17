@@ -38,7 +38,7 @@ export type PredicateFunction = (module: ModuleScript) -> boolean
 local SETTINGS: LoaderSettings = {
 	DEBUG_MODE = true,
 	WAIT_FOR_SERVER = true,
-	LOADING_PRIORITIES = true, 
+	LOADING_PRIORITIES = true,
 }
 
 local runContext = if RunService:IsClient() then "Client" else "Server"
@@ -108,7 +108,7 @@ local function filterModules(modules: { Instance }, predicate: PredicateFunction
 			if predicate and not predicate(module) then
 				continue
 			end
-			
+
 			table.insert(filtered, module)
 		end
 	end
@@ -121,7 +121,7 @@ end
 -- Loads the given modules
 local function load(modules: { any }, predicate: PredicateFunction?): { [string]: ModScript }
 	assert(modules, "You must pass in a table of modules")
-	
+
 	if SETTINGS.DEBUG_MODE then
 		modPrint(`Module Loader started at: {time()}s`)
 	end
@@ -135,7 +135,7 @@ local function load(modules: { any }, predicate: PredicateFunction?): { [string]
 
 	local filteredModules = filterModules(modules, predicate)
 	local totalTime = 0
-	
+
 	assert(#filteredModules >= 1, "No modules to load inside the given table")
 
 	if SETTINGS.LOADING_PRIORITIES then
@@ -170,7 +170,7 @@ local function load(modules: { any }, predicate: PredicateFunction?): { [string]
 	else
 		clientLoaded = true
 	end
-	
+
 	return requiredModules
 end
 
@@ -185,10 +185,10 @@ end
 local function runModules(modules: { [string]: any }, methodName: string)
 	for _, module in modules do
 		local method = module[methodName]
-		
+
 		assert(method, "Method not found or nil")
 		assert(typeof(method) == "function", "Method specified is not a function")
-		
+
 		if method and typeof(method) == "function" then
 			task.spawn(module.Init)
 		end
