@@ -8,25 +8,34 @@ Roblox: I_p2z
 -------------------------[ RBXModuleLoader ]-------------------------
 	"RBXModuleLoader" is an Advanced Module Loader designed to give you a lot of control over your modules!
 	
+	Please leave any feedback possible!
+	
 	Github Repo:
 	DevForum:
-	
-	[WARNING]
-		Modules with dependencies cannot have a higher priority than the modules it depends on.
-	
+
 	[FEATURES]
 	You can put a "Ignore" attribute on module scripts that you want to ignore
 	You can add custom filtering behaviour by passing a predicate function
 
-	[ SETTINGS ]
+	[SETTINGS]
 	DEBUG_MODE - Enables prints and warns, helping you identify errors with info (the amount of time taken to load a module, etc.)
 	WAIT_FOR_SERVER - If the client should wait for the server to finish loading modules before loading client modules
 	LOADING_PRIORITIES - Enables loading priorities (the order in which modules load), just give the module script an attribute called "Priority"
 		
-	[ SETUP ]
+	[SETUP]
 	Place this module loader in ReplicatedStorage
 	Place the "Start" server script in ServerScriptService
 	Place the "Start" local script in StarterPlayerScripts
+	
+	[FUNCTIONS]
+	Load - Loads the given modules that are in a table, optional predicate function
+	LoadChildren - Loads all the children of the parent passed, optional predicate function
+	LoadDescendants - Loads all the descendants of the parent passed, optional predicate function
+	RunModules - Runs the method passed on the loaded modules
+	GetModule - Returns the loaded module of the name passed
+	IsServerLoaded - Returns if the server has loaded (only used by the server)
+	IsClientLoaded - Returns if the client has loaded (only used by the client)
+	ChangeSettings - Change the settings of the module loader
 ]]
 
 --!strict
