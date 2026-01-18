@@ -1,4 +1,6 @@
 --[[
+Version: 1.0.0
+
 MODULE LOADER BY VYRON
 Discord: VyronRBLX
 Roblox: I_p2z
@@ -91,21 +93,18 @@ local function getSortedModules(modules: { ModuleScript }): { ModuleScript }
 	return sortedModules
 end
 
-local function loadModule(module: ModuleScript, callback: (number) -> ()?)
+local function loadModule(module: ModuleScript, callback: (number) -> ())
 	local startTime = os.clock()
-	local finished = false
 	local recordingThread = task.spawn(function()
-		while not finished do
+		while task.wait() do
 			if os.clock() - startTime >= 5 then
-				modWarn(`{module.Name} has been loading for: {os.clock() - startTime}s. Consider optimizing it.`)
+				modWarn(`{module.Name} has already been loading for: {os.clock() - startTime}s`)
 				return
-			end
-			task.wait()
+			end 
 		end
 	end)
 
 	local success, result: ModScript = pcall(require, module)
-	finished = true
 	task.cancel(recordingThread)
 	modAssert(success and result, `Module Loader failed loading: {module.Name}`)
 
@@ -114,10 +113,8 @@ local function loadModule(module: ModuleScript, callback: (number) -> ()?)
 	if SETTINGS.DEBUG_MODE then
 		debugWrap(modPrint, `Loaded: {module.Name} for {timeTaken}s`)
 	end
-
-	if callback then
-		callback(timeTaken)
-	end
+	
+	callback(timeTaken)
 
 	requiredModules[module.Name] = result
 end
@@ -143,7 +140,7 @@ end
 -----[[ PUBLIC ]]-----
 
 -- Loads the given modules
-local function load(modules: { any }, predicate: PredicateFunction?): { [string]: ModScript }
+local function loadModules(modules: { any }, predicate: PredicateFunction?): { [string]: ModScript }
 	modAssert(modules, "You must pass in a table of modules")
 
 	-- Wait for server
@@ -167,14 +164,6 @@ local function load(modules: { any }, predicate: PredicateFunction?): { [string]
 
 	-- Load
 	for _, module: ModuleScript in filteredModules do
-		if SETTINGS.DEBUG_MODE then
-			loadModule(module, function(timeTaken: number)
-				totalTime += timeTaken
-			end)
-			
-			continue
-		end
-
 		loadModule(module, function(timeTaken: number)
 			totalTime += timeTaken
 		end)
@@ -201,11 +190,11 @@ local function load(modules: { any }, predicate: PredicateFunction?): { [string]
 end
 
 local function loadDescendants(parent: Instance, predicate: PredicateFunction?): { [string]: ModScript }
-	return load(parent:GetDescendants(), predicate)
+	return loadModules(parent:GetDescendants(), predicate)
 end
 
 local function loadChildren(parent: Instance, predicate: PredicateFunction?): { [string]: ModScript }
-	return load(parent:GetChildren(), predicate)
+	return loadModules(parent:GetChildren(), predicate)
 end
 
 local function runModules(modules: { [string]: any }, methodName: string)
@@ -252,7 +241,7 @@ local function changeSettings(newSettings: LoaderSettings)
 end
 
 return table.freeze({
-	Load = load,
+	LoadModules = loadModules,
 	LoadDescendants = loadDescendants,
 	LoadChildren = loadChildren,
 	RunModules = runModules,
