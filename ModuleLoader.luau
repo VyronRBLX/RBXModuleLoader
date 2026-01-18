@@ -4,15 +4,15 @@ MODULE LOADER BY VYRON
 An Advanced Module Loader designed to give you easy control over your modules!
 
 [FEATURES]
-- Loading priorities
-- Gives you good control over your modules
-- Debugging (lets you view module loading times, etc.)
-- Easy flexible setup
+You can put a "Ignore" attribute on module scripts that you want to ignore
+You can put a "Delay" attribute on module scripts that will run after a set amount of time
+You can put a "Dependency" attribute on module scripts with the name of the module script that it waits for to load before loading itself.
+
 
 [SETTINGS]
 DEBUG_MODE - Enables prints and warns, helping you identify errors with info (the amount of time taken to load a module, etc.)
 WAIT_FOR_SERVER - If the client should wait for the server to finish loading modules before loading client modules
-LOADING_PRIORITIES - Enables loading priorities (the order in which modules load), just give the module script an attribute called "Priority", if it's the highest priority, it'll load first
+LOADING_PRIORITIES - Enables loading priorities (the order in which modules load), just give the module script an attribute called "Priority"
 
 [HOW TO USE]
 - Place this module loader in ReplicatedStorage
@@ -49,12 +49,20 @@ local requiredModules: { [string]: ModScript } = {}
 
 -----[[ PRIVATE ]]-----
 
-local function modPrint(msg: string)
-	print(`{prefix} {msg}`)
+local function modPrint(msg: string, notDebug: boolean?)
+	if not notDebug and SETTINGS.DEBUG_MODE then
+		print(`{prefix} {msg}`)
+	else
+		print(`{prefix} {msg}`)
+	end
 end
 
-local function modWarn(msg: string)
-	warn(`{prefix} {msg}`)
+local function modWarn(msg: string, notDebug: boolean?)
+	if not notDebug and SETTINGS.DEBUG_MODE then
+		warn(`{prefix} {msg}`)
+	else
+		warn(`{prefix} {msg}`)
+	end
 end
 
 local function modAssert(value: any, msg: string)
@@ -75,31 +83,42 @@ local function getSortedModules(modules: { ModuleScript }): { ModuleScript }
 		local bPriority = b:GetAttribute("Priority") or 1
 		return aPriority > bPriority
 	end)
-	
+
 	return sortedModules
-end
+end 
 
 local function loadModule(module: ModuleScript, callback: (number) -> ()?)
+	if module:GetAttribute("Dependency") then
+		while not requiredModules[module:GetAttribute("Dependency")] do
+			task.wait()
+		end
+	end
+	
+	if module:GetAttribute("Delay") then
+		modPrint(`{module.Name} delayed for {module:GetAttribute("Delay")}s because of delay attribute`)
+		
+		task.wait(module:GetAttribute("Delay"))
+	end
+
 	local startTime = os.clock()
 	local finished = false
-	
 	local recordingThread = task.spawn(function()
 		while not finished do
 			if os.clock() - startTime >= 5 then
-				modWarn(`{module.Name} has been loading for: {os.clock() - startTime}s. Consider optimizing it.`)
+				modWarn(`{module.Name} has been loading for: {os.clock() - startTime}s. Consider optimizing it.`, true)
 				return
 			end
 			task.wait()
 		end
 	end)
-	
+
 	local success, result: ModScript = pcall(require, module)
 	finished = true
 	task.cancel(recordingThread)
 	modAssert(success and result, `Module Loader failed loading: {module.Name}`)
-	
+
 	local timeTaken = os.clock() - startTime
-	
+
 	if SETTINGS.DEBUG_MODE then
 		modPrint(`Loaded: {module.Name} for {timeTaken}s`)
 	end
@@ -107,20 +126,22 @@ local function loadModule(module: ModuleScript, callback: (number) -> ()?)
 	if callback then
 		callback(timeTaken)
 	end
-	
+
 	requiredModules[module.Name] = result
 end
 
 local function filterModules(modules: { Instance }, predicate: PredicateFunction?): { ModuleScript }
 	local filtered = {}
 	for _, module in modules do
-		if module:IsA("ModuleScript") then
-			if predicate and not predicate(module) then
-				continue
-			end
-
-			table.insert(filtered, module)
+		if not module:IsA("ModuleScript") or module:GetAttribute("Ignore") then
+			continue
 		end
+
+		if predicate and not predicate(module) then
+			continue
+		end
+		
+		table.insert(filtered, module)
 	end
 
 	return filtered
@@ -204,7 +225,7 @@ local function runModules(modules: { [string]: any }, methodName: string)
 			if method and typeof(method) == "function" then
 				method()
 			end
-			
+
 			if SETTINGS.DEBUG_MODE then
 				modPrint(`{moduleName} took {os.clock() - startTime} to run {methodName}`)
 			end
