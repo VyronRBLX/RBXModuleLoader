@@ -1,24 +1,30 @@
 --[[
 MODULE LOADER BY VYRON
+Discord: VyronRBLX
+Roblox: I_p2z
 
-An Advanced Module Loader designed to give you easy control over your modules!
+-------------------------[ RBXModuleLoader ]-------------------------
+	"RBXModuleLoader" is an Advanced Module Loader designed to give you a lot of control over your modules!
+	
+	Github Repo:
+	DevForum:
+	
+	[WARNING]
+		Modules with dependencies cannot have a higher priority than the modules it depends on.
+	
+	[FEATURES]
+	You can put a "Ignore" attribute on module scripts that you want to ignore
+	You can add custom filtering behaviour by passing a predicate function
 
-[FEATURES]
-You can put a "Ignore" attribute on module scripts that you want to ignore
-You can put a "Delay" attribute on module scripts that will run after a set amount of time
-You can put a "Dependency" attribute on module scripts with the name of the module script that it waits for to load before loading itself.
-
-
-[SETTINGS]
-DEBUG_MODE - Enables prints and warns, helping you identify errors with info (the amount of time taken to load a module, etc.)
-WAIT_FOR_SERVER - If the client should wait for the server to finish loading modules before loading client modules
-LOADING_PRIORITIES - Enables loading priorities (the order in which modules load), just give the module script an attribute called "Priority"
-
-[HOW TO USE]
-- Place this module loader in ReplicatedStorage
-- Place the "Start" server script in ServerScriptService
-- Place the "Start" local script in StarterPlayerScripts
-
+	[ SETTINGS ]
+	DEBUG_MODE - Enables prints and warns, helping you identify errors with info (the amount of time taken to load a module, etc.)
+	WAIT_FOR_SERVER - If the client should wait for the server to finish loading modules before loading client modules
+	LOADING_PRIORITIES - Enables loading priorities (the order in which modules load), just give the module script an attribute called "Priority"
+		
+	[ SETUP ]
+	Place this module loader in ReplicatedStorage
+	Place the "Start" server script in ServerScriptService
+	Place the "Start" local script in StarterPlayerScripts
 ]]
 
 --!strict
@@ -49,25 +55,23 @@ local requiredModules: { [string]: ModScript } = {}
 
 -----[[ PRIVATE ]]-----
 
-local function modPrint(msg: string, notDebug: boolean?)
-	if not notDebug and SETTINGS.DEBUG_MODE then
-		print(`{prefix} {msg}`)
-	else
-		print(`{prefix} {msg}`)
-	end
+local function modPrint(...)
+	print(prefix, ...)
 end
 
-local function modWarn(msg: string, notDebug: boolean?)
-	if not notDebug and SETTINGS.DEBUG_MODE then
-		warn(`{prefix} {msg}`)
-	else
-		warn(`{prefix} {msg}`)
-	end
+local function modWarn(...)
+	warn(prefix, ...)
 end
 
 local function modAssert(value: any, msg: string)
 	if not value then
 		error(msg)
+	end
+end
+
+local function debugWrap(func: () -> (), ...)
+	if SETTINGS.DEBUG_MODE then
+		func(...)
 	end
 end
 
@@ -85,27 +89,15 @@ local function getSortedModules(modules: { ModuleScript }): { ModuleScript }
 	end)
 
 	return sortedModules
-end 
+end
 
 local function loadModule(module: ModuleScript, callback: (number) -> ()?)
-	if module:GetAttribute("Dependency") then
-		while not requiredModules[module:GetAttribute("Dependency")] do
-			task.wait()
-		end
-	end
-	
-	if module:GetAttribute("Delay") then
-		modPrint(`{module.Name} delayed for {module:GetAttribute("Delay")}s because of delay attribute`)
-		
-		task.wait(module:GetAttribute("Delay"))
-	end
-
 	local startTime = os.clock()
 	local finished = false
 	local recordingThread = task.spawn(function()
 		while not finished do
 			if os.clock() - startTime >= 5 then
-				modWarn(`{module.Name} has been loading for: {os.clock() - startTime}s. Consider optimizing it.`, true)
+				modWarn(`{module.Name} has been loading for: {os.clock() - startTime}s. Consider optimizing it.`)
 				return
 			end
 			task.wait()
@@ -120,7 +112,7 @@ local function loadModule(module: ModuleScript, callback: (number) -> ()?)
 	local timeTaken = os.clock() - startTime
 
 	if SETTINGS.DEBUG_MODE then
-		modPrint(`Loaded: {module.Name} for {timeTaken}s`)
+		debugWrap(modPrint, `Loaded: {module.Name} for {timeTaken}s`)
 	end
 
 	if callback then
@@ -131,7 +123,8 @@ local function loadModule(module: ModuleScript, callback: (number) -> ()?)
 end
 
 local function filterModules(modules: { Instance }, predicate: PredicateFunction?): { ModuleScript }
-	local filtered = {}
+	local filtered: { ModuleScript } = {}
+	
 	for _, module in modules do
 		if not module:IsA("ModuleScript") or module:GetAttribute("Ignore") then
 			continue
@@ -153,22 +146,21 @@ end
 local function load(modules: { any }, predicate: PredicateFunction?): { [string]: ModScript }
 	modAssert(modules, "You must pass in a table of modules")
 
-	if SETTINGS.DEBUG_MODE then
-		modPrint(`Module Loader started at: {time()}s`)
-	end
-
 	-- Wait for server
 	if SETTINGS.WAIT_FOR_SERVER and runContext ~= "Server" then
 		while not workspace:GetAttribute("SERVER_LOADED") do
 			task.wait()
 		end
 	end
+	
+	debugWrap(modPrint, `---------------------[ STARTED LOADING: {time()}s ]---------------------`)
 
 	local filteredModules = filterModules(modules, predicate)
 	local totalTime = 0
 
 	modAssert(#filteredModules >= 1, "No modules to load inside the given table")
-
+	debugWrap(modPrint, "The loading order of modules:", filteredModules)
+	
 	if SETTINGS.LOADING_PRIORITIES then
 		filteredModules = getSortedModules(filteredModules)
 	end
@@ -176,14 +168,16 @@ local function load(modules: { any }, predicate: PredicateFunction?): { [string]
 	-- Load
 	for _, module: ModuleScript in filteredModules do
 		if SETTINGS.DEBUG_MODE then
-			task.spawn(loadModule, module, function(timeTaken: number)
+			loadModule(module, function(timeTaken: number)
 				totalTime += timeTaken
 			end)
-
+			
 			continue
 		end
 
-		task.spawn(loadModule, module)
+		loadModule(module, function(timeTaken: number)
+			totalTime += timeTaken
+		end)
 	end
 
 	if SETTINGS.DEBUG_MODE then
@@ -192,9 +186,10 @@ local function load(modules: { any }, predicate: PredicateFunction?): { [string]
 				task.wait()
 			end
 		end
-		modPrint(`Loading Completed. Total Time Taken: {totalTime}s`)
 	end
-
+	
+	debugWrap(modPrint, `---------------------[ FINISHED LOADING: {totalTime}s ]---------------------`)
+	
 	if runContext == "Server" then
 		workspace:SetAttribute("SERVER_LOADED", true)
 		serverLoaded = true
@@ -218,16 +213,20 @@ local function runModules(modules: { [string]: any }, methodName: string)
 		task.spawn(function()
 			local startTime = os.clock()
 			local method: () -> () = module[methodName]
-
-			modAssert(method, "Method not found or nil")
-			modAssert(typeof(method) == "function", "Method found is not a function")
-
+			
+			if not method then
+				debugWrap(modWarn, `{moduleName} does not have the method: {methodName}`)
+				return
+			end
+			
+			modAssert(typeof(method) == "function", `Method found is not a function in {moduleName}`)
+			
 			if method and typeof(method) == "function" then
 				method()
 			end
 
 			if SETTINGS.DEBUG_MODE then
-				modPrint(`{moduleName} took {os.clock() - startTime} to run {methodName}`)
+				debugWrap(modPrint, `{moduleName} took {os.clock() - startTime} to run {methodName}`)
 			end
 		end)
 	end
