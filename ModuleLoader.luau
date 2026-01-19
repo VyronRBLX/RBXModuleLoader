@@ -10,8 +10,8 @@ Roblox: I_p2z
 	
 	Please leave any feedback possible!
 	
-	Github Repo:
-	DevForum:
+	Github Repo: https://github.com/VyronRBLX/RBXModuleLoader
+	DevForum: https://devforum.roblox.com/t/rbxmoduleloader-an-advanced-module-loader/4269966
 
 	[FEATURES]
 	You can put a "Ignore" attribute on module scripts that you want to ignore
@@ -177,12 +177,10 @@ local function loadModules(modules: { any }, predicate: PredicateFunction?): { [
 			totalTime += timeTaken
 		end)
 	end
-
-	if SETTINGS.DEBUG_MODE then
-		for _, module in filteredModules do
-			while not requiredModules[module.Name] do
-				task.wait()
-			end
+	
+	for _, module in filteredModules do
+		while not requiredModules[module.Name] do
+			task.wait()
 		end
 	end
 	
